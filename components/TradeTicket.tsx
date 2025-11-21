@@ -1,13 +1,152 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Copy, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useLogs } from "@/lib/log-context"
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  type ColumnDef,
+} from "@tanstack/react-table"
 
 type OrderType = "buy" | "sell"
 type OrderSide = "yes" | "no"
 type TimeInForce = "GTC" | "IOC" | "FOK"
+
+interface Order {
+  id: string
+  type: OrderType
+  side: OrderSide
+  price: number
+  size: number
+  tif: TimeInForce
+  timestamp: string
+  status: string
+}
+
+interface OrdersTableProps {
+  orders: Order[]
+}
+
+function OrdersTable({ orders }: OrdersTableProps) {
+  const columns = useMemo<ColumnDef<Order>[]>(
+    () => [
+      {
+        accessorKey: "type",
+        header: "Type",
+        cell: (info) => {
+          const type = info.getValue() as OrderType
+          return (
+            <span
+              className={`font-medium ${type === "buy" ? "text-green-400" : "text-red-400"
+                }`}
+            >
+              {type.toUpperCase()}
+            </span>
+          )
+        },
+      },
+      {
+        accessorKey: "side",
+        header: "Side",
+        cell: (info) => (
+          <span className="text-muted-foreground">
+            {(info.getValue() as OrderSide).toUpperCase()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "price",
+        header: "Price",
+        cell: (info) => (info.getValue() as number).toFixed(2),
+      },
+      {
+        accessorKey: "size",
+        header: "Size",
+        cell: (info) => (info.getValue() as number).toFixed(2),
+      },
+      {
+        accessorKey: "tif",
+        header: "TIF",
+        cell: (info) => info.getValue() as string,
+      },
+      {
+        id: "total",
+        header: "Total",
+        cell: (info) => {
+          const row = info.row.original
+          return (row.price * row.size).toFixed(2)
+        },
+      },
+      {
+        accessorKey: "timestamp",
+        header: "Time",
+        cell: (info) => (
+          <span className="text-muted-foreground">
+            {new Date(info.getValue() as string).toLocaleTimeString()}
+          </span>
+        ),
+      },
+    ],
+    []
+  )
+
+  const table = useReactTable({
+    data: orders,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
+
+  if (orders.length === 0) {
+    return (
+      <div className="text-xs text-muted-foreground text-center py-4">
+        No orders yet
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <table className="w-full text-[11px]">
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id} className="border-b border-white/30">
+              {headerGroup.headers.map((header) => (
+                <th
+                  key={header.id}
+                  className="px-2 py-1 text-left text-[11px] text-muted-foreground font-medium"
+                >
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {table.getRowModel().rows.map((row) => (
+            <tr
+              key={row.id}
+              className="border-b border-white/10 hover:bg-white/5"
+            >
+              {row.getVisibleCells().map((cell) => (
+                <td key={cell.id} className="px-2 py-1">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
 interface TradeTicketProps {
   defaultAddress?: string
@@ -31,6 +170,58 @@ export function TradeTicket({
   const [size, setSize] = useState("")
   const [tif, setTif] = useState<TimeInForce>("GTC")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [orders, setOrders] = useState<Order[]>([
+    {
+      id: "order_1",
+      type: "buy",
+      side: "yes",
+      price: 0.65,
+      size: 100,
+      tif: "GTC",
+      timestamp: new Date(Date.now() - 300000).toISOString(),
+      status: "placed",
+    },
+    {
+      id: "order_2",
+      type: "sell",
+      side: "no",
+      price: 0.35,
+      size: 150,
+      tif: "IOC",
+      timestamp: new Date(Date.now() - 180000).toISOString(),
+      status: "placed",
+    },
+    {
+      id: "order_3",
+      type: "buy",
+      side: "no",
+      price: 0.28,
+      size: 200,
+      tif: "GTC",
+      timestamp: new Date(Date.now() - 120000).toISOString(),
+      status: "placed",
+    },
+    {
+      id: "order_4",
+      type: "sell",
+      side: "yes",
+      price: 0.68,
+      size: 75,
+      tif: "FOK",
+      timestamp: new Date(Date.now() - 60000).toISOString(),
+      status: "placed",
+    },
+    {
+      id: "order_5",
+      type: "buy",
+      side: "yes",
+      price: 0.64,
+      size: 120,
+      tif: "GTC",
+      timestamp: new Date(Date.now() - 30000).toISOString(),
+      status: "placed",
+    },
+  ])
 
   // Trade settings
   const [address, setAddress] = useState<string>(defaultAddress)
@@ -92,6 +283,20 @@ export function TradeTicket({
 
       if (!response.ok) {
         throw new Error(responseData.error || "Failed to place order")
+      }
+
+      // Add order to list if successful
+      if (response.ok && responseData.order) {
+        setOrders(prev => [{
+          id: responseData.orderId || `order_${Date.now()}`,
+          type: orderType,
+          side: orderSide,
+          price: parseFloat(price),
+          size: parseFloat(size),
+          tif,
+          timestamp: responseData.order.timestamp || new Date().toISOString(),
+          status: "placed"
+        }, ...prev])
       }
     } catch (error) {
       addLog(
@@ -234,7 +439,7 @@ export function TradeTicket({
           </div>
         </div>
       </div>
-      <form onSubmit={handleSubmit} className="flex flex-1 flex-col p-1">
+      <form onSubmit={handleSubmit} className="flex flex-col p-1 flex-shrink-0">
         {/* Order Type Toggle */}
         <div className="mb-1 flex gap-1">
           <Button
@@ -361,6 +566,16 @@ export function TradeTicket({
           </div>
         )}
       </form>
+
+      {/* Line Separator */}
+      <div className="border-t border-white/30"></div>
+
+      {/* Orders Section */}
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-y-auto">
+          <OrdersTable orders={orders} />
+        </div>
+      </div>
     </div>
   )
 }
