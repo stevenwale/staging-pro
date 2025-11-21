@@ -254,14 +254,46 @@ export function TradeTicket({
   // Get host and chainId from localStorage or defaults
   const host = useMemo(() => {
     if (typeof window === "undefined") return "https://clob-staging.polymarket.com"
-    return localStorage.getItem("config_httpUrl") || process.env.NEXT_PUBLIC_HTTP_URL || "https://clob-staging.polymarket.com"
+    try {
+      const stored = localStorage.getItem("config_httpUrl")
+      if (stored) {
+        // Parse JSON since useLocalStorage stores values as JSON strings
+        const parsed = JSON.parse(stored)
+        if (parsed) {
+          // Strip any quotes that might be embedded in the string
+          const cleaned = String(parsed).replace(/^["']|["']$/g, '')
+          return cleaned
+
+        }
+      }
+    } catch (e) {
+      // If parsing fails, try using raw value (for backwards compatibility)
+      const raw = localStorage.getItem("config_httpUrl")
+      if (raw) {
+        // Strip any quotes that might be embedded in the string
+        const cleaned = raw.replace(/^["']|["']$/g, '')
+        return cleaned
+      }
+    }
+    const defaultHost = process.env.NEXT_PUBLIC_HTTP_URL || "https://clob-staging.polymarket.com"
+    return defaultHost.replace(/^["']|["']$/g, '')
   }, [])
 
-  console.log("host", host)
-
   const chainId = useMemo(() => {
-    if (typeof window === "undefined") return 137
-    return parseInt(localStorage.getItem("config_chainId") || process.env.NEXT_PUBLIC_CHAIN_ID || "137")
+    if (typeof window === "undefined") return 80002
+    try {
+      const stored = localStorage.getItem("config_chainId")
+      if (stored) {
+        // Parse JSON since useLocalStorage stores values as JSON strings
+        const parsed = JSON.parse(stored)
+        if (parsed) return parseInt(String(parsed))
+      }
+    } catch (e) {
+      // If parsing fails, try using raw value (for backwards compatibility)
+      const raw = localStorage.getItem("config_chainId")
+      if (raw) return parseInt(raw)
+    }
+    return parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "80002")
   }, [])
 
   // Create CLOB client instance
@@ -278,8 +310,11 @@ export function TradeTicket({
         passphrase: clobPassPhrase,
       }
 
+      // Ensure host is clean (no quotes, trimmed)
+      const cleanHost = String(host).trim().replace(/^["']|["']$/g, '')
+
       return new ClobClient(
-        host,
+        cleanHost,
         chainId as any,
         wallet,
         creds,
@@ -420,7 +455,15 @@ export function TradeTicket({
         "api-response"
       )
 
-      addLog(`Order placed successfully: ${response?.order_id || "unknown"}`, "api-response")
+      // Check if status is "live" (success), otherwise log as error
+      if (response?.status === "live") {
+        addLog(`Order placed successfully: ${response?.order_id || "unknown"}`, "api-response")
+      } else {
+        addLog(
+          `Order failed with status ${response?.status || "unknown"}: ${JSON.stringify(response, null, 2)}`,
+          "error"
+        )
+      }
     } catch (error) {
       addLog(
         `Order Error: ${error instanceof Error ? error.message : String(error)}`,
