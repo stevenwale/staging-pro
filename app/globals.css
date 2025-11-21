@@ -78,6 +78,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+    font-family: Menlo, Monaco, "Courier New", monospace;
   }
 }
