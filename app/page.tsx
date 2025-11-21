@@ -4,8 +4,12 @@ import { Orderbook } from "@/components/Orderbook"
 import { TradeTicket } from "@/components/TradeTicket"
 import { WebSocketLogs } from "@/components/WebSocketLogs"
 import { useLocalStorage } from "@/lib/use-local-storage"
+import { useLogs } from "@/lib/log-context"
+import { RotateCcw } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export default function Home() {
+  const { clearLogs } = useLogs()
   const [wsUrl, setWsUrl] = useLocalStorage<string>(
     "config_wsUrl",
     process.env.NEXT_PUBLIC_WS_URL || "wss://ws-subscriptions-clob-staging.polymarket.com"
@@ -18,6 +22,49 @@ export default function Home() {
     "config_chainId",
     process.env.NEXT_PUBLIC_CHAIN_ID || ""
   )
+
+  const handleReset = () => {
+    // Clear all localStorage keys used in the app
+    const keysToClear = [
+      "config_wsUrl",
+      "config_httpUrl",
+      "config_chainId",
+      "orderbook_activeTab",
+      "orderbook_yesTokenId",
+      "orderbook_noTokenId",
+      "tradeticket_orderType",
+      "tradeticket_orderSide",
+      "tradeticket_tif",
+      "tradeticket_address",
+      "tradeticket_pk",
+      "tradeticket_clobApiKey",
+      "tradeticket_clobSecret",
+      "tradeticket_clobPassPhrase",
+      "tradeticket_2_orderType",
+      "tradeticket_2_orderSide",
+      "tradeticket_2_tif",
+      "tradeticket_2_address",
+      "tradeticket_2_pk",
+      "tradeticket_2_clobApiKey",
+      "tradeticket_2_clobSecret",
+      "tradeticket_2_clobPassPhrase",
+    ]
+
+    keysToClear.forEach((key) => {
+      localStorage.removeItem(key)
+    })
+
+    // Clear logs
+    clearLogs()
+
+    // Reset state values to defaults
+    setWsUrl(process.env.NEXT_PUBLIC_WS_URL || "wss://ws-subscriptions-clob-staging.polymarket.com")
+    setHttpUrl(process.env.NEXT_PUBLIC_HTTP_URL || "https://clob-staging.polymarket.com")
+    setChainId(process.env.NEXT_PUBLIC_CHAIN_ID || "80002")
+
+    // Reload the page to reset all components
+    window.location.reload()
+  }
 
   return (
     <div className="flex h-screen flex-col bg-black">
@@ -54,6 +101,11 @@ export default function Home() {
               placeholder="wss://..."
             />
           </div>
+          <button
+            onClick={handleReset}
+          >
+            <RotateCcw className="h-3 w-3 mr-1" />
+          </button>
         </div>
       </header>
       <main className="grid grid-cols-[4fr_3fr_3fr] flex-1 gap-1 overflow-hidden p-1">

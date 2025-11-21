@@ -448,7 +448,7 @@ export function TradeTicket({
           <Button
             type="button"
             variant={orderType === "buy" ? "default" : "outline"}
-            className="flex-1 bg-black text-xs py-1 h-7"
+            className={`flex-1 text-xs py-1 h-7 ${orderType === "buy" ? "" : "bg-black"}`}
             onClick={() => setOrderType("buy")}
           >
             Buy
@@ -456,7 +456,7 @@ export function TradeTicket({
           <Button
             type="button"
             variant={orderType === "sell" ? "default" : "outline"}
-            className="flex-1 bg-black text-xs py-1 h-7"
+            className={`flex-1 text-xs py-1 h-7 ${orderType === "sell" ? "" : "bg-black"}`}
             onClick={() => setOrderType("sell")}
           >
             Sell
@@ -468,7 +468,7 @@ export function TradeTicket({
           <Button
             type="button"
             variant={orderSide === "yes" ? "default" : "outline"}
-            className="flex-1 bg-black text-xs py-1 h-7"
+            className={`flex-1 text-xs py-1 h-7 ${orderSide === "yes" ? "" : "bg-black"}`}
             onClick={() => setOrderSide("yes")}
           >
             Yes
@@ -476,7 +476,7 @@ export function TradeTicket({
           <Button
             type="button"
             variant={orderSide === "no" ? "default" : "outline"}
-            className="flex-1 bg-black text-xs py-1 h-7"
+            className={`flex-1 text-xs py-1 h-7 ${orderSide === "no" ? "" : "bg-black"}`}
             onClick={() => setOrderSide("no")}
           >
             No
