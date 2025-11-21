@@ -87,7 +87,7 @@ export default function Home() {
               type="text"
               value={httpUrl}
               onChange={(e) => setHttpUrl(e.target.value)}
-              className="w-48 px-1 py-0.5 text-xs bg-black border border-white/30 rounded-sm focus:outline-none focus:border-white/50"
+              className="w-72 px-1 py-0.5 text-xs bg-black border border-white/30 rounded-sm focus:outline-none focus:border-white/50"
               placeholder="https://..."
             />
           </div>
@@ -97,7 +97,7 @@ export default function Home() {
               type="text"
               value={wsUrl}
               onChange={(e) => setWsUrl(e.target.value)}
-              className="w-48 px-1 py-0.5 text-xs bg-black border border-white/30 rounded-sm focus:outline-none focus:border-white/50"
+              className="w-72 px-1 py-0.5 text-xs bg-black border border-white/30 rounded-sm focus:outline-none focus:border-white/50"
               placeholder="wss://..."
             />
           </div>
