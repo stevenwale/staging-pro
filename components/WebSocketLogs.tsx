@@ -3,18 +3,31 @@
 import { useEffect, useState, useRef } from "react"
 import { useLogs, LogType } from "@/lib/log-context"
 
-export function WebSocketLogs() {
+interface WebSocketLogsProps {
+    wsUrl: string
+}
+
+export function WebSocketLogs({ wsUrl }: WebSocketLogsProps) {
     const { logs, addLog } = useLogs()
     const [isConnected, setIsConnected] = useState(false)
     const wsRef = useRef<WebSocket | null>(null)
     const logsEndRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
+        // Close existing connection if URL changes
+        if (wsRef.current) {
+            wsRef.current.close()
+            wsRef.current = null
+        }
+
         // Initialize WebSocket connection
         const connectWebSocket = () => {
+            if (!wsUrl || wsUrl.trim() === "") {
+                addLog("WebSocket URL is empty", "error")
+                return
+            }
+
             try {
-                // Replace with your actual WebSocket URL
-                const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "wss://echo.websocket.org"
                 const ws = new WebSocket(wsUrl)
 
                 ws.onopen = () => {
@@ -51,7 +64,7 @@ export function WebSocketLogs() {
                 wsRef.current.close()
             }
         }
-    }, [addLog])
+    }, [wsUrl, addLog])
 
     useEffect(() => {
         // Auto-scroll to bottom when new logs arrive

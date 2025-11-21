@@ -1,14 +1,57 @@
 "use client"
 
+import { useState } from "react"
 import { Orderbook } from "@/components/Orderbook"
 import { TradeTicket } from "@/components/TradeTicket"
 import { WebSocketLogs } from "@/components/WebSocketLogs"
 
 export default function Home() {
+  const [wsUrl, setWsUrl] = useState<string>(
+    process.env.NEXT_PUBLIC_WS_URL || "wss://echo.websocket.org"
+  )
+  const [httpUrl, setHttpUrl] = useState<string>(
+    process.env.NEXT_PUBLIC_HTTP_URL || ""
+  )
+  const [chainId, setChainId] = useState<string>(
+    process.env.NEXT_PUBLIC_CHAIN_ID || ""
+  )
+
   return (
     <div className="flex h-screen flex-col bg-black">
-      <header className="border-b border-white/30 p-2">
-        <h1 className="text-lg font-bold">staging-pro</h1>
+      <header className="border-b border-white/30 px-2 py-2 flex items-center justify-between gap-4 flex-wrap">
+        <h1 className="text-lg font-italic font-bold">sp</h1>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground whitespace-nowrap">Chain ID:</label>
+            <input
+              type="text"
+              value={chainId}
+              onChange={(e) => setChainId(e.target.value)}
+              className="w-24 px-2 py-1 text-sm bg-black border border-white/30 rounded focus:outline-none focus:border-white/50"
+              placeholder="1"
+            />
+          </div>
+          <div className="flex items-center gap-2 max-w-md">
+            <label className="text-xs text-muted-foreground whitespace-nowrap">HTTP:</label>
+            <input
+              type="text"
+              value={httpUrl}
+              onChange={(e) => setHttpUrl(e.target.value)}
+              className="w-64 px-2 py-1 text-sm bg-black border border-white/30 rounded focus:outline-none focus:border-white/50"
+              placeholder="https://..."
+            />
+          </div>
+          <div className="flex items-center gap-2 max-w-md">
+            <label className="text-xs text-muted-foreground whitespace-nowrap">WS:</label>
+            <input
+              type="text"
+              value={wsUrl}
+              onChange={(e) => setWsUrl(e.target.value)}
+              className="w-64 px-2 py-1 text-sm bg-black border border-white/30 rounded focus:outline-none focus:border-white/50"
+              placeholder="wss://..."
+            />
+          </div>
+        </div>
       </header>
       <main className="grid grid-cols-[4fr_3fr_3fr] flex-1 gap-2 overflow-hidden p-2">
         {/* First Column - Orderbook and Logs (4 parts) */}
@@ -17,7 +60,7 @@ export default function Home() {
             <Orderbook />
           </div>
           <div className="flex-1 min-h-0">
-            <WebSocketLogs />
+            <WebSocketLogs wsUrl={wsUrl} />
           </div>
         </div>
 
