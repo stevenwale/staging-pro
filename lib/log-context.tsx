@@ -13,6 +13,7 @@ export interface LogEntry {
 
 interface LogContextType {
     logs: LogEntry[]
+    allLogs: LogEntry[]
     addLog: (message: string, type: LogType) => void
     clearLogs: () => void
 }
@@ -20,7 +21,8 @@ interface LogContextType {
 const LogContext = createContext<LogContextType | undefined>(undefined)
 
 export function LogProvider({ children }: { children: ReactNode }) {
-    const [logs, setLogs] = useState<LogEntry[]>([])
+    const [allLogs, setAllLogs] = useState<LogEntry[]>([]) // Store all logs
+    const [logs, setLogs] = useState<LogEntry[]>([]) // Display only last 100
 
     const addLog = useCallback((message: string, type: LogType) => {
         const logEntry: LogEntry = {
@@ -29,15 +31,17 @@ export function LogProvider({ children }: { children: ReactNode }) {
             message,
             type,
         }
-        setLogs(prev => [...prev, logEntry].slice(-100)) // Keep last 100 logs
+        setAllLogs(prev => [...prev, logEntry]) // Keep all logs
+        setLogs(prev => [...prev, logEntry].slice(-100)) // Display only last 100
     }, [])
 
     const clearLogs = useCallback(() => {
+        setAllLogs([])
         setLogs([])
     }, [])
 
     return (
-        <LogContext.Provider value={{ logs, addLog, clearLogs }}>
+        <LogContext.Provider value={{ logs, allLogs, addLog, clearLogs }}>
             {children}
         </LogContext.Provider>
     )

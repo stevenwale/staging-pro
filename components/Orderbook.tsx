@@ -419,8 +419,10 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
   const sortedAsks = [...asks].sort((a, b) => b.price - a.price)
 
   // Always show exactly 8 levels on each side, pad with empty if needed
+  // Bids: order from high to low, then take the first 8 items
   const limitedBids: (Order | null)[] = [...bids.slice(0, 8)]
-  const limitedAsks: (Order | null)[] = [...sortedAsks.slice(0, 8)]
+  // Asks: order from high to low, then take the last 8 items
+  const limitedAsks: (Order | null)[] = [...sortedAsks.slice(-8)]
 
   // Pad to exactly 8 rows
   // Bids: pad at the bottom (push)
@@ -529,18 +531,18 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
                   style={{ width: `${(ask.total / maxTotal) * 100}%` }}
                 />
               )}
-              <div className="relative z-10 flex w-full items-center justify-between gap-2 whitespace-nowrap">
+              <div className="relative z-10 grid w-full grid-cols-3 items-center gap-2 whitespace-nowrap">
                 {ask ? (
                   <>
                     <span className="text-red-500">{ask.price.toFixed(3)}</span>
-                    <span className="text-muted-foreground">{ask.size}</span>
-                    <span className="text-muted-foreground">{ask.total}</span>
+                    <span className="text-muted-foreground text-center">{ask.size.toFixed(2)}</span>
+                    <span className="text-muted-foreground text-right">{ask.total.toFixed(2)}</span>
                   </>
                 ) : (
                   <>
                     <span className="text-muted-foreground">—</span>
-                    <span className="text-muted-foreground">—</span>
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground text-center">—</span>
+                    <span className="text-muted-foreground text-right">—</span>
                   </>
                 )}
               </div>
@@ -551,7 +553,7 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
         {/* Spread */}
         <div className="border-y border-white/30 bg-muted/50 px-1 py-0.5 text-center text-xs font-medium">
           <div className="text-muted-foreground">
-            Spread: {limitedAsks[0] && limitedBids[0] && limitedAsks[0] !== null && limitedBids[0] !== null ? (limitedAsks[0].price - limitedBids[0].price).toFixed(4) : "0.0000"}
+            Spread: {asks[0] && bids[0] ? (asks[0].price - bids[0].price).toFixed(4) : "0.0000"}
           </div>
         </div>
 
@@ -568,18 +570,18 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
                   style={{ width: `${(bid.total / maxTotal) * 100}%` }}
                 />
               )}
-              <div className="relative z-10 flex w-full items-center justify-between gap-2 whitespace-nowrap">
+              <div className="relative z-10 grid w-full grid-cols-3 items-center gap-2 whitespace-nowrap">
                 {bid ? (
                   <>
                     <span className="text-green-500">{bid.price.toFixed(3)}</span>
-                    <span className="text-muted-foreground">{bid.size}</span>
-                    <span className="text-muted-foreground">{bid.total}</span>
+                    <span className="text-muted-foreground text-center">{bid.size.toFixed(2)}</span>
+                    <span className="text-muted-foreground text-right">{bid.total.toFixed(2)}</span>
                   </>
                 ) : (
                   <>
                     <span className="text-muted-foreground">—</span>
-                    <span className="text-muted-foreground">—</span>
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground text-center">—</span>
+                    <span className="text-muted-foreground text-right">—</span>
                   </>
                 )}
               </div>

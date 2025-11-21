@@ -6,7 +6,7 @@ import { useLogs, LogType } from "@/lib/log-context"
 import { Button } from "@/components/ui/button"
 
 export function WebSocketLogs() {
-    const { logs } = useLogs()
+    const { logs, allLogs } = useLogs()
     const logsEndRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -30,11 +30,11 @@ export function WebSocketLogs() {
     }
 
     const downloadLogs = () => {
-        if (logs.length === 0) {
+        if (allLogs.length === 0) {
             return
         }
 
-        const logsData = logs.map(log => ({
+        const logsData = allLogs.map(log => ({
             timestamp: log.timestamp.toISOString(),
             type: log.type,
             message: log.message,
@@ -61,8 +61,8 @@ export function WebSocketLogs() {
                         variant="ghost"
                         className="!h-3 !w-3 !p-0 !min-w-0 [&_svg]:!h-3 [&_svg]:!w-3 active:opacity-50"
                         onClick={downloadLogs}
-                        disabled={logs.length === 0}
-                        title="Download logs"
+                        disabled={allLogs.length === 0}
+                        title="Download all logs"
                     >
                         <Download className="h-3 w-3" />
                     </Button>
