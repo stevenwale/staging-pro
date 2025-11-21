@@ -1,7 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Copy } from "lucide-react"
+import { ClobClient } from "@polymarket/clob-client"
+import { useLogs } from "@/lib/log-context"
 
 interface Order {
   price: number
@@ -14,46 +16,306 @@ interface OrderbookData {
   asks: Order[]
 }
 
-export function Orderbook() {
+interface OrderbookUpdate {
+  bids?: Array<[string, string]> // [price, size]
+  asks?: Array<[string, string]> // [price, size]
+}
+
+interface OrderbookProps {
+  wsUrl: string
+}
+
+// Helper function to serialize errors for logging
+const serializeError = (error: unknown): string => {
+  if (error instanceof Error) {
+    const errorObj: Record<string, unknown> = {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    }
+    if (error.cause) {
+      errorObj.cause = error.cause
+    }
+    return JSON.stringify(errorObj, null, 2)
+  }
+  if (typeof error === "object" && error !== null) {
+    return JSON.stringify(error, null, 2)
+  }
+  return String(error)
+}
+
+export function Orderbook({ wsUrl }: OrderbookProps) {
+  const { addLog } = useLogs()
   const [activeTab, setActiveTab] = useState<"yes" | "no">("yes")
   const [yesTokenId, setYesTokenId] = useState<string>("71321045679252212594626385532706912750332728571942532289631379312455583992563")
   const [noTokenId, setNoTokenId] = useState<string>("52114319501245915516055106046884209969926127482827954674443846427813813222426")
 
   // Yes orderbook data
   const [yesOrderbook, setYesOrderbook] = useState<OrderbookData>({
-    bids: [
-      { price: 0.65, size: 100, total: 100 },
-      { price: 0.64, size: 150, total: 250 },
-      { price: 0.63, size: 200, total: 450 },
-      { price: 0.62, size: 120, total: 570 },
-      { price: 0.61, size: 180, total: 750 },
-    ],
-    asks: [
-      { price: 0.66, size: 100, total: 100 },
-      { price: 0.67, size: 150, total: 250 },
-      { price: 0.68, size: 200, total: 450 },
-      { price: 0.69, size: 120, total: 570 },
-      { price: 0.70, size: 180, total: 750 },
-    ],
+    bids: [],
+    asks: [],
   })
 
   // No orderbook data
   const [noOrderbook, setNoOrderbook] = useState<OrderbookData>({
-    bids: [
-      { price: 0.30, size: 200, total: 200 },
-      { price: 0.29, size: 180, total: 380 },
-      { price: 0.28, size: 150, total: 530 },
-      { price: 0.27, size: 220, total: 750 },
-      { price: 0.26, size: 100, total: 850 },
-    ],
-    asks: [
-      { price: 0.31, size: 200, total: 200 },
-      { price: 0.32, size: 180, total: 380 },
-      { price: 0.33, size: 150, total: 530 },
-      { price: 0.34, size: 220, total: 750 },
-      { price: 0.35, size: 100, total: 850 },
-    ],
+    bids: [],
+    asks: [],
   })
+
+  const wsRef = useRef<WebSocket | null>(null)
+  const clobClientRef = useRef<ClobClient | null>(null)
+  const [isConnected, setIsConnected] = useState(false)
+
+  // Initialize ClobClient and WebSocket connection
+  useEffect(() => {
+    const host = process.env.NEXT_PUBLIC_HTTP_URL || "https://clob.polymarket.com"
+    clobClientRef.current = new ClobClient(host)
+
+    // Close existing connection if URL changes
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+
+    // Connect to WebSocket for orderbook updates using the URL from navbar
+    if (!wsUrl || wsUrl.trim() === "") {
+      addLog("WebSocket URL is empty", "error")
+      setIsConnected(false)
+      return
+    }
+
+    const ws = new WebSocket(wsUrl)
+
+    ws.onopen = () => {
+      addLog("WebSocket connected for orderbook updates", "connection")
+      setIsConnected(true)
+
+      // Subscribe to market channel with asset IDs
+      const MARKET_CHANNEL = "market"
+      const assetIds: string[] = []
+      if (yesTokenId) assetIds.push(yesTokenId)
+      if (noTokenId) assetIds.push(noTokenId)
+
+      if (assetIds.length > 0) {
+        const subscribeMessage = {
+          assets_ids: assetIds,
+          type: MARKET_CHANNEL
+        }
+        ws.send(JSON.stringify(subscribeMessage))
+        addLog(`Subscribed to market channel: ${JSON.stringify(subscribeMessage)}`, "message")
+      }
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+
+        // Add the response to logs
+        addLog(`Orderbook response: ${JSON.stringify(data, null, 2)}`, "message")
+
+        // Process orderbook update
+        const processOrderbook = (bids: Array<[string, string]>, asks: Array<[string, string]>): OrderbookData => {
+          // Convert bids to Order format and calculate totals
+          const processedBids: Order[] = bids
+            .map(([price, size]) => ({
+              price: parseFloat(price),
+              size: parseFloat(size),
+              total: 0, // Will calculate below
+            }))
+            .sort((a, b) => b.price - a.price) // Sort descending (highest first)
+            .map((order, index, arr) => {
+              const total = index === 0
+                ? order.size
+                : arr[index - 1].total + order.size
+              return { ...order, total }
+            })
+
+          // Convert asks to Order format and calculate totals
+          const processedAsks: Order[] = asks
+            .map(([price, size]) => ({
+              price: parseFloat(price),
+              size: parseFloat(size),
+              total: 0, // Will calculate below
+            }))
+            .sort((a, b) => a.price - b.price) // Sort ascending (lowest first)
+            .map((order, index, arr) => {
+              const total = index === 0
+                ? order.size
+                : arr[index - 1].total + order.size
+              return { ...order, total }
+            })
+
+          return { bids: processedBids, asks: processedAsks }
+        }
+
+        // Handle array format: [{ asset_id, bids, asks, event_type, ... }, ...]
+        if (Array.isArray(data)) {
+          data.forEach((item) => {
+            if (item.event_type === "book" && item.asset_id) {
+              const assetId = item.asset_id
+              const bids = item.bids || []
+              const asks = item.asks || []
+
+              // Ensure bids and asks are in the correct format [price, size][]
+              // If they're objects, convert them
+              const formattedBids: Array<[string, string]> = bids.map((bid: any) => {
+                if (Array.isArray(bid) && bid.length >= 2) {
+                  return [String(bid[0]), String(bid[1])]
+                } else if (typeof bid === "object" && bid !== null) {
+                  return [String(bid.price || bid[0] || "0"), String(bid.size || bid[1] || "0")]
+                }
+                return ["0", "0"]
+              })
+
+              const formattedAsks: Array<[string, string]> = asks.map((ask: any) => {
+                if (Array.isArray(ask) && ask.length >= 2) {
+                  return [String(ask[0]), String(ask[1])]
+                } else if (typeof ask === "object" && ask !== null) {
+                  return [String(ask.price || ask[0] || "0"), String(ask.size || ask[1] || "0")]
+                }
+                return ["0", "0"]
+              })
+
+              const orderbookData = processOrderbook(formattedBids, formattedAsks)
+
+              if (assetId === yesTokenId) {
+                setYesOrderbook(orderbookData)
+              } else if (assetId === noTokenId) {
+                setNoOrderbook(orderbookData)
+              }
+            }
+          })
+        }
+        // Handle different message formats (legacy support)
+        // Format 1: { channel: "orderbook", data: { bids: [...], asks: [...] }, token_id: "..." }
+        else if (data.channel === "orderbook" || data.event === "orderbook") {
+          const tokenId = data.token_id || data.tokenId || data.params?.[0]?.replace("orderbook.", "")
+          const update: OrderbookUpdate = data.data || data
+
+          if (update.bids || update.asks) {
+            const orderbookData = processOrderbook(
+              update.bids || [],
+              update.asks || []
+            )
+
+            if (tokenId === yesTokenId) {
+              setYesOrderbook(orderbookData)
+            } else if (tokenId === noTokenId) {
+              setNoOrderbook(orderbookData)
+            }
+          }
+        }
+        // Format 2: Direct orderbook update { bids: [...], asks: [...] }
+        else if (data.bids || data.asks) {
+          // Try to determine token ID from subscription params or message
+          const tokenId = data.token_id || data.tokenId || data.asset_id
+          const orderbookData = processOrderbook(
+            data.bids || [],
+            data.asks || []
+          )
+
+          // Update both if we can't determine which token, or update specific one
+          if (tokenId === yesTokenId) {
+            setYesOrderbook(orderbookData)
+          } else if (tokenId === noTokenId) {
+            setNoOrderbook(orderbookData)
+          } else if (!tokenId) {
+            // If no token ID specified, update the active tab's orderbook
+            if (activeTab === "yes") {
+              setYesOrderbook(orderbookData)
+            } else {
+              setNoOrderbook(orderbookData)
+            }
+          }
+        }
+        // Format 3: Response to subscription { result: { bids: [...], asks: [...] } }
+        else if (data.result && (data.result.bids || data.result.asks)) {
+          const orderbookData = processOrderbook(
+            data.result.bids || [],
+            data.result.asks || []
+          )
+          // Update active tab's orderbook
+          if (activeTab === "yes") {
+            setYesOrderbook(orderbookData)
+          } else {
+            setNoOrderbook(orderbookData)
+          }
+        }
+      } catch (error) {
+        const errorMessage = `Error parsing orderbook update: ${serializeError(error)}`
+        addLog(errorMessage, "error")
+      }
+    }
+
+    ws.onerror = (error) => {
+      const errorMessage = `WebSocket error: ${serializeError(error)}`
+      addLog(errorMessage, "error")
+      setIsConnected(false)
+    }
+
+    ws.onclose = () => {
+      addLog("WebSocket closed, attempting to reconnect...", "connection")
+      setIsConnected(false)
+      // Attempt to reconnect after 3 seconds
+      setTimeout(() => {
+        if (wsRef.current?.readyState === WebSocket.CLOSED) {
+          // Reconnection will be handled by the effect
+        }
+      }, 3000)
+    }
+
+    wsRef.current = ws
+
+    return () => {
+      if (wsRef.current) {
+        // Unsubscribe before closing if connection is open
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          if (yesTokenId) {
+            try {
+              wsRef.current.send(JSON.stringify({
+                method: "unsubscribe",
+                params: [`orderbook.${yesTokenId}`]
+              }))
+            } catch (error) {
+              addLog(`Error unsubscribing from yes token: ${serializeError(error)}`, "error")
+            }
+          }
+          if (noTokenId) {
+            try {
+              wsRef.current.send(JSON.stringify({
+                method: "unsubscribe",
+                params: [`orderbook.${noTokenId}`]
+              }))
+            } catch (error) {
+              addLog(`Error unsubscribing from no token: ${serializeError(error)}`, "error")
+            }
+          }
+        }
+        wsRef.current.close()
+        wsRef.current = null
+      }
+    }
+  }, [yesTokenId, noTokenId, wsUrl, addLog])
+
+  // Resubscribe when token IDs change
+  useEffect(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      // Subscribe to market channel with asset IDs
+      const MARKET_CHANNEL = "market"
+      const assetIds: string[] = []
+      if (yesTokenId) assetIds.push(yesTokenId)
+      if (noTokenId) assetIds.push(noTokenId)
+
+      if (assetIds.length > 0) {
+        const subscribeMessage = {
+          assets_ids: assetIds,
+          type: MARKET_CHANNEL
+        }
+        wsRef.current.send(JSON.stringify(subscribeMessage))
+        addLog(`Resubscribed to market channel: ${JSON.stringify(subscribeMessage)}`, "message")
+      }
+    }
+  }, [yesTokenId, noTokenId, addLog])
 
   const currentOrderbook = activeTab === "yes" ? yesOrderbook : noOrderbook
   const { bids, asks } = currentOrderbook
@@ -85,15 +347,23 @@ export function Orderbook() {
     try {
       await navigator.clipboard.writeText(text)
     } catch (err) {
-      console.error("Failed to copy:", err)
+      console.error("Failed to copy:", serializeError(err))
     }
   }
 
   return (
     <div className="flex h-full flex-col rounded-sm border border-white/30 bg-black">
       <div className="border-b border-white/30">
-        <div className="px-1 py-0.5">
+        <div className="px-1 py-0.5 flex items-center justify-between">
           <h2 className="text-xs">orderbook</h2>
+          <div className="flex items-center gap-1">
+            <div
+              className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
+            />
+            <span className="text-[10px] text-muted-foreground">
+              {isConnected ? "Connected" : "Disconnected"}
+            </span>
+          </div>
         </div>
         <div className="px-1 py-1 space-y-1 border-t border-white/30">
           <div className="flex items-center gap-1">

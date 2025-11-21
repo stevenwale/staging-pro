@@ -7,7 +7,7 @@ import { WebSocketLogs } from "@/components/WebSocketLogs"
 
 export default function Home() {
   const [wsUrl, setWsUrl] = useState<string>(
-    process.env.NEXT_PUBLIC_WS_URL || "wss://echo.websocket.org"
+    process.env.NEXT_PUBLIC_WS_URL || "wss://ws-subscriptions-clob-staging.polymarket.com/ws/market"
   )
   const [httpUrl, setHttpUrl] = useState<string>(
     process.env.NEXT_PUBLIC_HTTP_URL || ""
@@ -57,7 +57,7 @@ export default function Home() {
         {/* First Column - Orderbook and Logs (4 parts) */}
         <div className="flex flex-col gap-1 min-h-0 min-w-0">
           <div className="flex-shrink-0">
-            <Orderbook />
+            <Orderbook wsUrl={wsUrl} />
           </div>
           <div className="flex-1 min-h-0">
             <WebSocketLogs wsUrl={wsUrl} />
