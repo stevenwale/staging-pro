@@ -56,6 +56,10 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
     "orderbook_noTokenId",
     "52114319501245915516055106046884209969926127482827954674443846427813813222426"
   )
+  const [conditionId, setConditionId] = useLocalStorage<string>(
+    "orderbook_conditionId",
+    "0x5f65177b394277fd294cd75650044e32ba009a95022d88a0c1d565897d72f8f1"
+  )
 
   // Yes orderbook data
   const [yesOrderbook, setYesOrderbook] = useState<OrderbookData>({
@@ -70,7 +74,6 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
   })
 
   const wsRef = useRef<WebSocket | null>(null)
-  const clobClientRef = useRef<ClobClient | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptRef = useRef(0)
   const shouldReconnectRef = useRef(true)
@@ -79,8 +82,6 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
 
   // Initialize ClobClient and WebSocket connection
   useEffect(() => {
-    // const host = process.env.NEXT_PUBLIC_HTTP_URL || "https://clob.polymarket.com"
-    // clobClientRef.current = new ClobClient(host)
 
     // Clear any existing reconnect timeout
     if (reconnectTimeoutRef.current) {
@@ -527,6 +528,22 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
             />
             <button
               onClick={() => copyToClipboard(noTokenId)}
+              className="p-0.5 text-white hover:bg-white/5 active:opacity-50 transition-colors"
+            >
+              <Copy className="w-2.5 h-2.5" />
+            </button>
+          </div>
+          <div className="flex items-center gap-1">
+            <label className="text-[10px] text-muted-foreground whitespace-nowrap w-3">C</label>
+            <input
+              type="text"
+              value={conditionId}
+              onChange={(e) => setConditionId(e.target.value)}
+              placeholder="Condition ID"
+              className="flex-1 px-1 py-0.5 text-xs bg-black border border-white/30 rounded-sm focus:outline-none focus:border-white/50"
+            />
+            <button
+              onClick={() => copyToClipboard(conditionId)}
               className="p-0.5 text-white hover:bg-white/5 active:opacity-50 transition-colors"
             >
               <Copy className="w-2.5 h-2.5" />

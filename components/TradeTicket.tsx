@@ -231,6 +231,14 @@ export function TradeTicket({
   const [showClobSecret, setShowClobSecret] = useState(false)
   const [showClobPassPhrase, setShowClobPassPhrase] = useState(false)
 
+  // WebSocket refs and state for user channel
+  const userWsRef = useRef<WebSocket | null>(null)
+  const userReconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const userReconnectAttemptRef = useRef(0)
+  const shouldUserReconnectRef = useRef(true)
+  const [isUserConnected, setIsUserConnected] = useState(false)
+  const [userReconnectKey, setUserReconnectKey] = useState(0)
+
   // Get host and chainId from localStorage or defaults
   const host = useMemo(() => {
     if (typeof window === "undefined") return "https://clob-staging.polymarket.com"
@@ -274,6 +282,29 @@ export function TradeTicket({
       if (raw) return parseInt(raw)
     }
     return parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "80002")
+  }, [])
+
+  // Get WebSocket URL from localStorage or defaults
+  const wsUrl = useMemo(() => {
+    if (typeof window === "undefined") return "wss://ws-subscriptions-clob-staging.polymarket.com"
+    try {
+      const stored = localStorage.getItem("config_wsUrl")
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (parsed) {
+          const cleaned = String(parsed).replace(/^["']|["']$/g, '')
+          return cleaned
+        }
+      }
+    } catch (e) {
+      const raw = localStorage.getItem("config_wsUrl")
+      if (raw) {
+        const cleaned = raw.replace(/^["']|["']$/g, '')
+        return cleaned
+      }
+    }
+    const defaultWsUrl = process.env.NEXT_PUBLIC_WS_URL || "wss://ws-subscriptions-clob-staging.polymarket.com"
+    return defaultWsUrl.replace(/^["']|["']$/g, '')
   }, [])
 
   // Create CLOB client instance
@@ -382,6 +413,128 @@ export function TradeTicket({
       clearInterval(interval)
     }
   }, [clobClient, fetchOrders])
+
+  // WebSocket connection for user channel (trades and orders)
+  useEffect(() => {
+    // Only connect if we have auth credentials
+    if (!clobApiKey || !clobSecret || !clobPassPhrase) {
+      setIsUserConnected(false)
+      return
+    }
+
+    // Clear any existing reconnect timeout
+    if (userReconnectTimeoutRef.current) {
+      clearTimeout(userReconnectTimeoutRef.current)
+      userReconnectTimeoutRef.current = null
+    }
+
+    // Close existing connection if credentials change
+    if (userWsRef.current) {
+      shouldUserReconnectRef.current = false
+      userWsRef.current.close()
+      userWsRef.current = null
+    }
+
+    // Connect to WebSocket for user channel
+    if (!wsUrl || wsUrl.trim() === "") {
+      addLog(`[${storageKey}] WebSocket URL is empty`, "error")
+      setIsUserConnected(false)
+      return
+    }
+
+    // Append /ws/user to the WebSocket URL
+    const userWsUrl = wsUrl.endsWith('/') ? `${wsUrl}ws/user` : `${wsUrl}/ws/user`
+    const ws = new WebSocket(userWsUrl)
+
+    // Enable reconnection for this new connection
+    shouldUserReconnectRef.current = true
+
+    ws.onopen = () => {
+      addLog(`[${storageKey}] WebSocket connected for user channel: ${userWsUrl}`, "connection")
+      setIsUserConnected(true)
+      userReconnectAttemptRef.current = 0
+      shouldUserReconnectRef.current = true
+
+      // Subscribe to user channel with auth for trades and orders
+      const USER_CHANNEL = "user"
+      // Use token IDs from orderbook, or empty array to subscribe to all markets
+      const markets: string[] = []
+      if (yesTokenId) markets.push(yesTokenId)
+      if (noTokenId) markets.push(noTokenId)
+
+      const auth = {
+        apikey: clobApiKey,
+        secret: clobSecret,
+        passphrase: clobPassPhrase,
+      }
+
+      const subscribeMessage = {
+        markets: markets,
+        type: USER_CHANNEL,
+        auth: auth,
+      }
+
+      ws.send(JSON.stringify(subscribeMessage))
+      addLog(`[${storageKey}] Subscribed to user channel (trades & orders): ${JSON.stringify({ markets, type: USER_CHANNEL, auth: { ...auth, secret: "***", passphrase: "***" } }, null, 2)}`, "message")
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        addLog(`[${storageKey}] User channel response: ${JSON.stringify(data, null, 2)}`, "message")
+      } catch (error) {
+        const errorMessage = `[${storageKey}] Error parsing user channel message: ${error instanceof Error ? error.message : String(error)}`
+        addLog(errorMessage, "error")
+      }
+    }
+
+    ws.onerror = (error) => {
+      const errorMessage = `[${storageKey}] User channel WebSocket error: ${error instanceof Error ? error.message : String(error)}`
+      addLog(errorMessage, "error")
+      setIsUserConnected(false)
+    }
+
+    ws.onclose = (event) => {
+      addLog(`[${storageKey}] User channel WebSocket closed (code: ${event.code}, reason: ${event.reason || 'none'})`, "connection")
+      setIsUserConnected(false)
+
+      // Only attempt reconnection if we should reconnect and the connection wasn't manually closed
+      if (shouldUserReconnectRef.current && event.code !== 1000) {
+        userReconnectAttemptRef.current += 1
+        // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
+        const delay = Math.min(1000 * Math.pow(2, userReconnectAttemptRef.current - 1), 30000)
+
+        addLog(`[${storageKey}] Attempting to reconnect user channel in ${delay / 1000}s (attempt ${userReconnectAttemptRef.current})...`, "connection")
+
+        userReconnectTimeoutRef.current = setTimeout(() => {
+          if (shouldUserReconnectRef.current && (!userWsRef.current || userWsRef.current.readyState === WebSocket.CLOSED)) {
+            // Trigger reconnection by updating reconnectKey
+            setUserReconnectKey(prev => prev + 1)
+          }
+        }, delay)
+      } else {
+        addLog(`[${storageKey}] User channel WebSocket reconnection disabled (manual close or component unmounting)`, "connection")
+      }
+    }
+
+    userWsRef.current = ws
+
+    return () => {
+      // Clear reconnect timeout
+      if (userReconnectTimeoutRef.current) {
+        clearTimeout(userReconnectTimeoutRef.current)
+        userReconnectTimeoutRef.current = null
+      }
+
+      // Disable reconnection on cleanup
+      shouldUserReconnectRef.current = false
+
+      if (userWsRef.current) {
+        userWsRef.current.close()
+        userWsRef.current = null
+      }
+    }
+  }, [clobApiKey, clobSecret, clobPassPhrase, wsUrl, storageKey, addLog, yesTokenId, noTokenId, userReconnectKey])
 
   // Function to cancel an order
   const handleCancelOrder = useCallback(async (orderId: string) => {
