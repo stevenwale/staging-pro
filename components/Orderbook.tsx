@@ -134,9 +134,10 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
             .filter(order => order.size > 0) // Filter out zero-size orders
             .sort((a, b) => b.price - a.price) // Sort descending (highest first)
             .map((order, index, arr) => {
+              // Calculate cumulative total from previous orders
               const total = index === 0
                 ? order.size
-                : arr[index - 1].total + order.size
+                : arr.slice(0, index).reduce((sum, o) => sum + o.size, 0) + order.size
               return { ...order, total }
             })
 
@@ -148,11 +149,12 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
               total: 0, // Will calculate below
             }))
             .filter(order => order.size > 0) // Filter out zero-size orders
-            .sort((a, b) => a.price - b.price) // Sort ascending (lowest first)
+            .sort((a, b) => a.price - b.price) // Sort descending (highest first) to match display order
             .map((order, index, arr) => {
+              // Calculate cumulative total from previous orders
               const total = index === 0
                 ? order.size
-                : arr[index - 1].total + order.size
+                : arr.slice(0, index).reduce((sum, o) => sum + o.size, 0) + order.size
               return { ...order, total }
             })
 
@@ -206,7 +208,7 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
             })
             return { bids: targetArray, asks: currentOrderbook.asks }
           } else {
-            targetArray.sort((a, b) => a.price - b.price)
+            targetArray.sort((a, b) => b.price - a.price) // Sort descending (highest first) to match display order
             targetArray.forEach((order, index) => {
               order.total = index === 0
                 ? order.size

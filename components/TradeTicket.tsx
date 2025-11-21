@@ -76,14 +76,6 @@ function OrdersTable({ orders }: OrdersTableProps) {
         cell: (info) => info.getValue() as string,
       },
       {
-        id: "total",
-        header: "Total",
-        cell: (info) => {
-          const row = info.row.original
-          return (row.price * row.size).toFixed(2)
-        },
-      },
-      {
         accessorKey: "timestamp",
         header: "Time",
         cell: (info) => (
@@ -744,18 +736,6 @@ export function TradeTicket({
             ? "Placing Order..."
             : `${orderType.toUpperCase()} ${orderSide.toUpperCase()}`}
         </Button>
-
-        {/* Total */}
-        {price && size && (
-          <div className="mb-1 rounded-sm bg-black border border-white/30 p-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Total:</span>
-              <span className="font-medium">
-                {(parseFloat(price) * parseFloat(size)).toFixed(2)}
-              </span>
-            </div>
-          </div>
-        )}
       </form>
 
       {/* Line Separator */}
