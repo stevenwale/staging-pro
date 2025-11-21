@@ -6,8 +6,8 @@ import { WebSocketLogs } from "@/components/WebSocketLogs"
 
 export default function Home() {
   return (
-    <div className="flex h-screen flex-col">
-      <header className="border-b p-2">
+    <div className="flex h-screen flex-col bg-black">
+      <header className="border-b border-white/30 p-2">
         <h1 className="text-lg font-bold">staging-pro</h1>
       </header>
       <main className="flex flex-1 gap-2 overflow-hidden p-2">

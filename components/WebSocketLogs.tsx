@@ -74,12 +74,12 @@ export function WebSocketLogs() {
     }
 
     return (
-        <div className="flex h-full flex-col rounded-lg border bg-card">
-            <div className="flex items-center justify-between border-b px-2 py-1">
-                <h2 className="text-lg font-semibold">logs</h2>
+        <div className="flex h-full flex-col rounded-lg border border-white/30 bg-black">
+            <div className="flex items-center justify-between border-b border-white/30 px-2 py-1">
+                <h2>logs</h2>
                 <div className="flex items-center gap-2">
                     <div
-                        className={`h-2 w-2 rounded-full ${isConnected ? "bg-primary" : "bg-destructive"
+                        className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"
                             }`}
                     />
                     <span className="text-xs text-muted-foreground">

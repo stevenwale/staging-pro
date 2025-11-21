@@ -71,9 +71,9 @@ export function TradeTicket() {
   }
 
   return (
-    <div className="flex h-full flex-col rounded-lg border bg-card">
-      <div className="border-b px-2 py-1">
-        <h2 className="text-lg font-semibold">trade</h2>
+    <div className="flex h-full flex-col rounded-lg border border-white/30 bg-black">
+      <div className="border-b border-white/30 px-2 py-1">
+        <h2>trade</h2>
       </div>
       <form onSubmit={handleSubmit} className="flex flex-1 flex-col p-2">
         {/* Order Type Toggle */}
@@ -132,7 +132,7 @@ export function TradeTicket() {
             max="1"
             value={price}
             onChange={e => setPrice(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="w-full rounded-md border border-white/30 bg-black px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             placeholder="0.00"
             required
           />
@@ -153,7 +153,7 @@ export function TradeTicket() {
             min="0"
             value={size}
             onChange={e => setSize(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="w-full rounded-md border border-white/30 bg-black px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             placeholder="0.00"
             required
           />
@@ -171,7 +171,7 @@ export function TradeTicket() {
             id="tif"
             value={tif}
             onChange={e => setTif(e.target.value as TimeInForce)}
-            className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="w-full rounded-md border border-white/30 bg-black px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <option value="GTC">GTC (Good Till Cancel)</option>
             <option value="IOC">IOC (Immediate Or Cancel)</option>
