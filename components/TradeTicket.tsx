@@ -338,8 +338,8 @@ export function TradeTicket({
   const { addLog } = useLogs()
   const [orderType, setOrderType] = useLocalStorage<OrderType>(`${storageKey}_orderType`, "buy")
   const [orderSide, setOrderSide] = useLocalStorage<OrderSide>(`${storageKey}_orderSide`, "yes")
-  const [price, setPrice] = useState("")
-  const [size, setSize] = useState("")
+  const [price, setPrice] = useLocalStorage<string>(`${storageKey}_price`, "")
+  const [size, setSize] = useLocalStorage<string>(`${storageKey}_size`, "")
   const [tif, setTif] = useLocalStorage<TimeInForce>(`${storageKey}_tif`, "GTC")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
@@ -1058,9 +1058,6 @@ export function TradeTicket({
     }
 
     setIsSubmitting(false)
-    // Reset form
-    setPrice("")
-    setSize("")
   }
 
   return (
