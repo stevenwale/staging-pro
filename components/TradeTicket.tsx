@@ -121,6 +121,7 @@ function OrdersTable({ orders, onCancel, onCancelAll }: OrdersTableProps) {
     [onCancel, onCancelAll]
   )
 
+  // eslint-disable-next-line react-compiler/react-compiler
   const table = useReactTable({
     data: orders,
     columns,
@@ -224,8 +225,6 @@ export function TradeTicket({
 
 
   // Hardcoded market parameters
-  const tickSize = "0.01"
-  const negRisk = false
   const signatureType = 0 // Browser Wallet
 
   // Visibility states for hidden fields
@@ -239,7 +238,6 @@ export function TradeTicket({
   const userReconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const userReconnectAttemptRef = useRef(0)
   const shouldUserReconnectRef = useRef(true)
-  const [isUserConnected, setIsUserConnected] = useState(false)
   const [userReconnectKey, setUserReconnectKey] = useState(0)
 
   // Get host and chainId from localStorage or defaults
@@ -257,7 +255,7 @@ export function TradeTicket({
 
         }
       }
-    } catch (e) {
+    } catch {
       // If parsing fails, try using raw value (for backwards compatibility)
       const raw = localStorage.getItem("config_httpUrl")
       if (raw) {
@@ -279,7 +277,7 @@ export function TradeTicket({
         const parsed = JSON.parse(stored)
         if (parsed) return parseInt(String(parsed))
       }
-    } catch (e) {
+    } catch {
       // If parsing fails, try using raw value (for backwards compatibility)
       const raw = localStorage.getItem("config_chainId")
       if (raw) return parseInt(raw)
@@ -299,7 +297,7 @@ export function TradeTicket({
           return cleaned
         }
       }
-    } catch (e) {
+    } catch {
       const raw = localStorage.getItem("config_wsUrl")
       if (raw) {
         const cleaned = raw.replace(/^["']|["']$/g, '')
@@ -484,7 +482,6 @@ export function TradeTicket({
   useEffect(() => {
     // Only connect if we have auth credentials
     if (!clobApiKey || !clobSecret || !clobPassPhrase) {
-      setIsUserConnected(false)
       return
     }
 
@@ -505,7 +502,6 @@ export function TradeTicket({
     if (!wsUrl || wsUrl.trim() === "") {
       const shortAddr = getShortAddress(address)
       addLog(`CONNECT ERROR user [0x${shortAddr}]`, "error", { message: "WebSocket URL is empty" })
-      setIsUserConnected(false)
       return
     }
 
@@ -517,7 +513,6 @@ export function TradeTicket({
     shouldUserReconnectRef.current = true
 
     ws.onopen = () => {
-      setIsUserConnected(true)
       userReconnectAttemptRef.current = 0
       shouldUserReconnectRef.current = true
 
@@ -561,12 +556,9 @@ export function TradeTicket({
     ws.onerror = (error) => {
       const shortAddr = getShortAddress(address)
       addLog(`CONNECT ERROR user [0x${shortAddr}]`, "error", serializeError(error))
-      setIsUserConnected(false)
     }
 
     ws.onclose = (event) => {
-      setIsUserConnected(false)
-
       const shortAddr = getShortAddress(address)
       const closeInfo = {
         code: event.code,
@@ -608,7 +600,7 @@ export function TradeTicket({
         userWsRef.current = null
       }
     }
-  }, [clobApiKey, clobSecret, clobPassPhrase, wsUrl, storageKey, addLog, conditionId, userReconnectKey])
+  }, [clobApiKey, clobSecret, clobPassPhrase, wsUrl, storageKey, addLog, conditionId, userReconnectKey, address])
 
   // Function to cancel an order
   const handleCancelOrder = useCallback(async (orderId: string) => {

@@ -6,7 +6,6 @@ import { WebSocketLogs } from "@/components/WebSocketLogs"
 import { useLocalStorage } from "@/lib/use-local-storage"
 import { useLogs } from "@/lib/log-context"
 import { RotateCcw } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 export default function Home() {
   const { clearLogs } = useLogs()

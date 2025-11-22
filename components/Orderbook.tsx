@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Copy } from "lucide-react"
-import { ClobClient } from "@polymarket/clob-client"
 import { useLogs } from "@/lib/log-context"
 import { useLocalStorage } from "@/lib/use-local-storage"
 
@@ -24,25 +23,6 @@ interface OrderbookUpdate {
 
 interface OrderbookProps {
   wsUrl: string
-}
-
-// Helper function to serialize errors for logging
-const serializeError = (error: unknown): any => {
-  if (error instanceof Error) {
-    const errorObj: Record<string, unknown> = {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    }
-    if (error.cause) {
-      errorObj.cause = error.cause
-    }
-    return errorObj
-  }
-  if (typeof error === "object" && error !== null) {
-    return error
-  }
-  return { message: String(error) }
 }
 
 export function Orderbook({ wsUrl }: OrderbookProps) {
@@ -99,7 +79,6 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
     // Connect to WebSocket for orderbook updates using the URL from navbar
     if (!wsUrl || wsUrl.trim() === "") {
       addLog("CONNECT ERROR market", "error", { message: "WebSocket URL is empty" })
-      setIsConnected(false)
       return
     }
 
@@ -357,12 +336,12 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
           }
         }
       } catch (error) {
-        addLog("ERROR RECEIVE market", "error", serializeError(error))
+        addLog("ERROR RECEIVE market", "error", JSON.stringify(error))
       }
     }
 
     ws.onerror = (error) => {
-      addLog("CONNECT ERROR market", "error", serializeError(error))
+      addLog("CONNECT ERROR market", "error", JSON.stringify(error))
       setIsConnected(false)
     }
 
@@ -405,34 +384,34 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
       shouldReconnectRef.current = false
 
       if (wsRef.current) {
-        // Unsubscribe before closing if connection is open
-        if (wsRef.current.readyState === WebSocket.OPEN) {
-          if (yesTokenId) {
-            try {
-              wsRef.current.send(JSON.stringify({
-                method: "unsubscribe",
-                params: [`orderbook.${yesTokenId}`]
-              }))
-            } catch (error) {
-              addLog(`ERROR SEND`, "error", { ...serializeError(error), action: "unsubscribe yes token" })
-            }
-          }
-          if (noTokenId) {
-            try {
-              wsRef.current.send(JSON.stringify({
-                method: "unsubscribe",
-                params: [`orderbook.${noTokenId}`]
-              }))
-            } catch (error) {
-              addLog(`ERROR SEND`, "error", { ...serializeError(error), action: "unsubscribe no token" })
-            }
-          }
-        }
+        // // Unsubscribe before closing if connection is open
+        // if (wsRef.current.readyState === WebSocket.OPEN) {
+        //   if (yesTokenId) {
+        //     try {
+        //       wsRef.current.send(JSON.stringify({
+        //         method: "unsubscribe",
+        //         params: [`orderbook.${yesTokenId}`]
+        //       }))
+        //     } catch (error) {
+        //       addLog(`ERROR SEND`, "error", ...JSON.stringify(error))
+        //     }
+        //   }
+        //   if (noTokenId) {
+        //     try {
+        //       wsRef.current.send(JSON.stringify({
+        //         method: "unsubscribe",
+        //         params: [`orderbook.${noTokenId}`]
+        //       }))
+        //     } catch (error) {
+        //       addLog(`ERROR SEND`, "error", ...JSON.stringify(error))
+        //     }
+        //   }
+        // }
         wsRef.current.close()
         wsRef.current = null
       }
     }
-  }, [yesTokenId, noTokenId, wsUrl, addLog, reconnectKey])
+  }, [yesTokenId, noTokenId, wsUrl, addLog, reconnectKey, activeTab])
 
   // Resubscribe when token IDs change
   useEffect(() => {
@@ -486,7 +465,7 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
     try {
       await navigator.clipboard.writeText(text)
     } catch (err) {
-      console.error("Failed to copy:", serializeError(err))
+      console.error("Failed to copy:", JSON.stringify(err, null, 2))
     }
   }
 
