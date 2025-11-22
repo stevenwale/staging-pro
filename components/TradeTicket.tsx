@@ -41,14 +41,6 @@ interface Trade {
   order_id: string
 }
 
-interface Position {
-  side: "buy" | "sell"
-  asset_id: string
-  size: number
-  avgPrice: number
-  pnl: number
-}
-
 interface OrdersTableProps {
   orders: Order[]
   onCancel: (orderId: string) => Promise<void>
@@ -131,121 +123,6 @@ function TradesTable({ trades }: TradesTableProps) {
     return (
       <div className="text-xs text-muted-foreground text-center py-4">
         No trades yet
-      </div>
-    )
-  }
-
-  return (
-    <div className="overflow-x-auto bg-black orders-scrollbar">
-      <table className="w-full text-[11px] min-w-max">
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id} className="border-b border-white/30">
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  className="px-2 py-1 text-left text-[11px] text-muted-foreground font-medium whitespace-nowrap"
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr
-              key={row.id}
-              className="border-b border-white/10 hover:bg-white/5"
-            >
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="px-2 py-1 whitespace-nowrap text-left">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-interface PositionsTableProps {
-  positions: Position[]
-}
-
-function PositionsTable({ positions }: PositionsTableProps) {
-  const columns = useMemo<ColumnDef<Position>[]>(
-    () => [
-      {
-        accessorKey: "asset_id",
-        header: "Asset ID",
-        cell: (info) => {
-          const assetId = String(info.getValue())
-          // Extract only digits and take first 8
-          const digits = assetId.replace(/\D/g, '').slice(0, 8)
-          return (
-            <span className="text-muted-foreground text-[10px] font-mono">
-              {digits}
-            </span>
-          )
-        },
-      },
-      {
-        accessorKey: "side",
-        header: "Side",
-        cell: (info) => {
-          const side = info.getValue() as "buy" | "sell"
-          return (
-            <span className={`font-medium ${side === "buy" ? "text-green-400" : "text-red-400"}`}>
-              {side.toUpperCase()}
-            </span>
-          )
-        },
-      },
-      {
-        accessorKey: "size",
-        header: "Size",
-        cell: (info) => (info.getValue() as number).toFixed(2),
-      },
-      {
-        accessorKey: "avgPrice",
-        header: "Avg Price",
-        cell: (info) => (info.getValue() as number).toFixed(2),
-      },
-      {
-        accessorKey: "pnl",
-        header: "PnL",
-        cell: (info) => {
-          const pnl = info.getValue() as number
-          return (
-            <span className={pnl >= 0 ? "text-green-400" : "text-red-400"}>
-              {pnl.toFixed(2)}
-            </span>
-          )
-        },
-      },
-    ],
-    []
-  )
-
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
-    data: positions,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  })
-
-  if (positions.length === 0) {
-    return (
-      <div className="text-xs text-muted-foreground text-center py-4">
-        No positions yet
       </div>
     )
   }
@@ -466,8 +343,7 @@ export function TradeTicket({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
   const [trades, setTrades] = useState<Trade[]>([])
-  const [positions, setPositions] = useState<Position[]>([])
-  const [activeTab, setActiveTab] = useLocalStorage<"positions" | "trades" | "orders">(`${storageKey}_activeTab`, "orders")
+  const [activeTab, setActiveTab] = useLocalStorage<"trades" | "orders">(`${storageKey}_activeTab`, "orders")
 
   // Trade settings
   const [address, setAddress] = useLocalStorage<string>(`${storageKey}_address`, defaultAddress)
@@ -786,14 +662,19 @@ export function TradeTicket({
       // Check if tradesData is valid
       if (!tradesData || !Array.isArray(tradesData)) {
         setTrades([])
-        setPositions([])
         return
       }
 
       // Transform Trade[] to our Trade format
       const transformedTrades: Trade[] = tradesData.map((trade) => {
         // Map Side.BUY -> "buy", Side.SELL -> "sell"
-        const side: "buy" | "sell" = trade.side === "BUY" ? "buy" : "sell"
+        let side: "buy" | "sell" = trade.side === "BUY" ? "buy" : "sell"
+
+        // If trader_side is "MAKER", swap the side
+        // When you're the maker, the side is opposite to what you see in the trade
+        if (trade.trader_side === "MAKER") {
+          side = side === "buy" ? "sell" : "buy"
+        }
 
         // Parse timestamp - match_time could be ISO string or timestamp number
         let timestamp: string
@@ -822,36 +703,11 @@ export function TradeTicket({
       })
 
       setTrades(transformedTrades)
-
-      // Calculate positions from trades - group by asset_id and side
-      const positionMap = new Map<string, { side: "buy" | "sell"; size: number; totalCost: number }>()
-
-      transformedTrades.forEach((trade) => {
-        const key = `${trade.asset_id}_${trade.side}`
-        const existing = positionMap.get(key) || { side: trade.side, size: 0, totalCost: 0 }
-        const tradeValue = trade.price * trade.size
-        positionMap.set(key, {
-          side: trade.side,
-          size: existing.size + trade.size,
-          totalCost: existing.totalCost + tradeValue,
-        })
-      })
-
-      const calculatedPositions: Position[] = Array.from(positionMap.entries()).map(([key, data]) => ({
-        side: data.side,
-        asset_id: key.split("_")[0], // Extract asset_id from key
-        size: data.size,
-        avgPrice: data.size > 0 ? data.totalCost / data.size : 0,
-        pnl: 0, // PnL calculation would require current market price
-      }))
-
-      setPositions(calculatedPositions)
     } catch (error) {
       const errorPayload = extractErrorPayload(error)
       const latency = Math.round(performance.now() - startTime)
       addLog(`GET ${uriPath} [0x${shortAddr}] ${latency}ms`, "error", errorPayload)
       setTrades([])
-      setPositions([])
     }
   }, [clobClient, addLog, host, address])
 
@@ -885,7 +741,6 @@ export function TradeTicket({
       // Use setTimeout to avoid synchronous setState in effect
       const timeoutId = setTimeout(() => {
         setTrades([])
-        setPositions([])
       }, 0)
       return () => clearTimeout(timeoutId)
     }
@@ -1460,16 +1315,6 @@ export function TradeTicket({
         {/* Tabs */}
         <div className="flex border-b border-white/30">
           <button
-            onClick={() => setActiveTab("positions")}
-            className={`flex-1 px-1 flex items-center justify-center border-r border-white/30 text-xs font-medium transition-colors ${activeTab === "positions"
-              ? "bg-white/10 text-white"
-              : "text-muted-foreground hover:text-white hover:bg-white/5"
-              }`}
-            style={{ height: '24px' }}
-          >
-            Positions
-          </button>
-          <button
             onClick={() => setActiveTab("trades")}
             className={`flex-1 px-1 flex items-center justify-center border-r border-white/30 text-xs font-medium transition-colors ${activeTab === "trades"
               ? "bg-white/10 text-white"
@@ -1493,9 +1338,6 @@ export function TradeTicket({
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto">
-          {activeTab === "positions" && (
-            <PositionsTable positions={positions} />
-          )}
           {activeTab === "trades" && (
             <TradesTable trades={trades} />
           )}
