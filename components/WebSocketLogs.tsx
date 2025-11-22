@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Download, ChevronDown, ChevronRight } from "lucide-react"
 import { useLogs, LogType } from "@/lib/log-context"
 import { Button } from "@/components/ui/button"
+import { formatDateTime } from "@/lib/utils"
 
 export function WebSocketLogs() {
     const { logs, allLogs } = useLogs()
@@ -181,7 +182,7 @@ export function WebSocketLogs() {
                                         )}
                                         {!isCollapsible && <span className="w-2.5 flex-shrink-0" />}
                                         <span className="text-muted-foreground whitespace-nowrap text-[10px] leading-[1.2] flex-shrink-0">
-                                            {log.timestamp.toLocaleTimeString()}
+                                            {formatDateTime(log.timestamp)}
                                         </span>
                                         <div className="flex-1 min-w-0">
                                             <span className="font-mono text-[10px] leading-[1.2]">

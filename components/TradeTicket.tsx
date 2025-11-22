@@ -5,6 +5,7 @@ import { Copy, Eye, EyeOff, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useLogs } from "@/lib/log-context"
 import { useLocalStorage } from "@/lib/use-local-storage"
+import { formatDateTime } from "@/lib/utils"
 import {
   useReactTable,
   getCoreRowModel,
@@ -104,7 +105,7 @@ function TradesTable({ trades }: TradesTableProps) {
         header: "Time",
         cell: (info) => (
           <span className="text-muted-foreground">
-            {new Date(info.getValue() as string).toLocaleTimeString()}
+            {formatDateTime(info.getValue() as string)}
           </span>
         ),
       },
@@ -215,7 +216,7 @@ function OrdersTable({ orders, onCancel, onCancelAll }: OrdersTableProps) {
         header: "Time",
         cell: (info) => (
           <span className="text-muted-foreground">
-            {new Date(info.getValue() as string).toLocaleTimeString()}
+            {formatDateTime(info.getValue() as string)}
           </span>
         ),
       },
