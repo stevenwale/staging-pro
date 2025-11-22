@@ -29,14 +29,12 @@ export function WebSocketLogs() {
 
     useLayoutEffect(() => {
         // Only auto-scroll if user is at the bottom
-        console.log("isBottom", isBottom)
         if (isBottom) {
             // Mark as programmatic scroll to prevent updating isBottom
             isProgrammaticScrollRef.current = true
 
             const container = scrollContainerRef.current
             if (container) {
-                console.log("container", container.scrollTop, container.scrollHeight, container.clientHeight)
                 // Scroll immediately - useLayoutEffect runs synchronously after DOM updates
                 container.scrollTop = container.scrollHeight
 
