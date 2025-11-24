@@ -384,34 +384,11 @@ export function Orderbook({ wsUrl }: OrderbookProps) {
       shouldReconnectRef.current = false
 
       if (wsRef.current) {
-        // // Unsubscribe before closing if connection is open
-        // if (wsRef.current.readyState === WebSocket.OPEN) {
-        //   if (yesTokenId) {
-        //     try {
-        //       wsRef.current.send(JSON.stringify({
-        //         method: "unsubscribe",
-        //         params: [`orderbook.${yesTokenId}`]
-        //       }))
-        //     } catch (error) {
-        //       addLog(`ERROR SEND`, "error", ...JSON.stringify(error))
-        //     }
-        //   }
-        //   if (noTokenId) {
-        //     try {
-        //       wsRef.current.send(JSON.stringify({
-        //         method: "unsubscribe",
-        //         params: [`orderbook.${noTokenId}`]
-        //       }))
-        //     } catch (error) {
-        //       addLog(`ERROR SEND`, "error", ...JSON.stringify(error))
-        //     }
-        //   }
-        // }
         wsRef.current.close()
         wsRef.current = null
       }
     }
-  }, [yesTokenId, noTokenId, wsUrl, addLog, reconnectKey, activeTab])
+  }, [yesTokenId, noTokenId, wsUrl, addLog, reconnectKey])
 
   // Resubscribe when token IDs change
   useEffect(() => {
